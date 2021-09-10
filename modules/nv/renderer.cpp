@@ -5,6 +5,12 @@ nv::renderer::renderer()
 {
 }
 
+void nv::renderer::draw()
+{
+	// FIXME: to finish implementing the begin() function of the render pass at
+	// vulkan.cpp before finishing draw().
+}
+
 nv::renderer::~renderer()
 {
 	if ((this->chain.handle != nullptr) || (this->pass.handle != nullptr))

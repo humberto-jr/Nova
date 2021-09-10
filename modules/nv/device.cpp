@@ -155,6 +155,12 @@ void nv::device::renderer_startup(nv::renderer &r, const nv::window &w) const
 	r.frame.create(this->interface, r.image, r.pass);
 	r.signal.create(this->interface);
 	r.signal.create(this->interface);
+
+	const uint32_t image_count = r.image.size();
+
+	r.buffer.resize(image_count);
+	for (uint32_t n = 0; n < image_count; ++n)
+		r.buffer[n].allocate(this->interface, this->pool);
 }
 
 void nv::device::renderer_shutdown(nv::renderer &r) const

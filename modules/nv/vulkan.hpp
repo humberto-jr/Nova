@@ -75,12 +75,16 @@
 			{
 				command_buffer();
 
-				void allocate(const nv::vulkan::device &d, nv::vulkan::command_pool &p);
+				void allocate(const nv::vulkan::device &d,
+				              const nv::vulkan::command_pool &p);
+
+				void begin();
 
 				~command_buffer();
 
 				VkCommandBuffer handle;
 				VkCommandBufferAllocateInfo setup;
+				VkCommandBufferBeginInfo startup;
 			};
 
 			struct semaphore
@@ -190,6 +194,7 @@
 				VkRenderPass handle;
 				VkSubpassDescription info;
 				VkRenderPassCreateInfo setup;
+				VkRenderPassBeginInfo startup;
 			};
 
 			struct framebuffer
@@ -197,7 +202,8 @@
 				framebuffer();
 
 				void create(const nv::vulkan::device &d,
-				            const nv::vulkan::image &i, const nv::vulkan::render_pass &p);
+				            const nv::vulkan::image &i,
+				            nv::vulkan::render_pass &p);
 
 				uint32_t size() const;
 

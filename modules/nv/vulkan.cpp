@@ -244,10 +244,15 @@ nv::vulkan::command_buffer::command_buffer():
 	this->setup.commandBufferCount = 0;
 	this->setup.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	this->setup.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+
+	this->startup.flags = 0;
+	this->startup.pNext = nullptr;
+	this->startup.pInheritanceInfo = nullptr;
+	this->startup.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 }
 
 void nv::vulkan::command_buffer::allocate(const nv::vulkan::device &d,
-                                           nv::vulkan::command_pool &p)
+                                          const nv::vulkan::command_pool &p)
 {
 	ASSERT(d.handle != nullptr)
 	ASSERT(p.handle != nullptr)
@@ -257,6 +262,12 @@ void nv::vulkan::command_buffer::allocate(const nv::vulkan::device &d,
 
 	const VkResult error = vkAllocateCommandBuffers(d.handle, &this->setup, &this->handle);
 	NV_VULKAN_ERROR("vkAllocateCommandBuffers()", error)
+}
+
+void nv::vulkan::command_buffer::begin()
+{
+	VkResult error = vkBeginCommandBuffer(this->handle, &this->startup);
+	NV_VULKAN_ERROR("vkBeginCommandBuffer()", error)
 }
 
 nv::vulkan::command_buffer::~command_buffer()
@@ -669,6 +680,22 @@ nv::vulkan::render_pass::render_pass()
 
 	this->info.colorAttachmentCount = 0;
 	this->info.pColorAttachments = nullptr;
+
+	this->startup.pNext = nullptr;
+	this->startup.clearValueCount = 0;
+	this->startup.framebuffer = nullptr;
+	this->startup.pClearValues = nullptr;
+	this->startup.renderPass = this->handle;
+	this->startup.renderArea.offset.x = 0;
+	this->startup.renderArea.offset.y = 0;
+	this->startup.renderArea.extent.width = 0;
+	this->startup.renderArea.extent.height = 0;
+	this->startup.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+
+	// NOTE: this->startup.framebuffer will be defined later when this render
+	// pass is used to create a framebuffer at nv::vulkan::framebuffer::create().
+
+	// FIXME: this->startup.renderArea has not been used yet.
 }
 
 void nv::vulkan::render_pass::create(const nv::vulkan::device &d,
@@ -686,6 +713,14 @@ void nv::vulkan::render_pass::create(const nv::vulkan::device &d,
 	VkResult error = vkCreateRenderPass(d.handle, &this->setup, nullptr, &this->handle);
 	NV_VULKAN_ERROR("vkCreateRenderPass()", error)
 }
+
+/*
+void nv::vulkan::render_pass::begin(const nv::vulkan::command_buffer &b)
+{
+	ASSERT(b.handle != nullptr)
+	// FIXME: after finishing here, do implement the draw() function at renderer.cpp.
+}
+*/
 
 void nv::vulkan::render_pass::destroy(const nv::vulkan::device &d)
 {
@@ -724,7 +759,7 @@ nv::vulkan::framebuffer::framebuffer()
 
 void nv::vulkan::framebuffer::create(const nv::vulkan::device &d,
                                      const nv::vulkan::image &i,
-                                     const nv::vulkan::render_pass &p)
+                                     nv::vulkan::render_pass &p)
 {
 	ASSERT(d.handle != nullptr)
 	ASSERT(p.handle != nullptr)
@@ -748,6 +783,9 @@ void nv::vulkan::framebuffer::create(const nv::vulkan::device &d,
 		VkResult error = vkCreateFramebuffer(d.handle, &this->setup, nullptr, &this->handle[n]);
 		NV_VULKAN_ERROR("vkCreateFramebuffer()", error)
 	}
+
+	// FIXME: using the 1st framebuffer for the render pass for now.
+	p.startup.framebuffer = this->handle[0];
 }
 
 uint32_t nv::vulkan::framebuffer::size() const

@@ -1,5 +1,6 @@
 #if !defined(NV_PIPELINE_HEADER)
 	#define NV_PIPELINE_HEADER
+
 	#define "vulkan.hpp"
 
 	namespace nv
