@@ -236,8 +236,7 @@ nv::vulkan::command_pool::~command_pool()
 // nv::vulkan::command_buffer
 //
 
-nv::vulkan::command_buffer::command_buffer():
-	handle(nullptr)
+nv::vulkan::command_buffer::command_buffer()
 {
 	this->setup.pNext = nullptr;
 	this->setup.commandPool = nullptr;
@@ -252,22 +251,35 @@ nv::vulkan::command_buffer::command_buffer():
 }
 
 void nv::vulkan::command_buffer::allocate(const nv::vulkan::device &d,
-                                          const nv::vulkan::command_pool &p)
+                                          const nv::vulkan::command_pool &p,
+                                          const uint32_t n)
 {
 	ASSERT(d.handle != nullptr)
 	ASSERT(p.handle != nullptr)
 
-	this->setup.commandBufferCount = 1;
+	this->setup.commandBufferCount = n;
 	this->setup.commandPool = p.handle;
+	this->handle.resize(n);
 
-	const VkResult error = vkAllocateCommandBuffers(d.handle, &this->setup, &this->handle);
+	VkResult error = vkAllocateCommandBuffers(d.handle, &this->setup, this->handle.data());
 	NV_VULKAN_ERROR("vkAllocateCommandBuffers()", error)
 }
 
-void nv::vulkan::command_buffer::begin()
+uint32_t nv::vulkan::command_buffer::size()
 {
-	VkResult error = vkBeginCommandBuffer(this->handle, &this->startup);
+	return this->handle.size();
+}
+
+void nv::vulkan::command_buffer::begin(const uint32_t n)
+{
+	VkResult error = vkBeginCommandBuffer(this->handle[n], &this->startup);
 	NV_VULKAN_ERROR("vkBeginCommandBuffer()", error)
+}
+
+void nv::vulkan::command_buffer::end(const uint32_t n)
+{
+	VkResult error = vkEndCommandBuffer(this->handle[n]);
+	NV_VULKAN_ERROR("vkEndCommandBuffer()", error)
 }
 
 nv::vulkan::command_buffer::~command_buffer()
@@ -692,10 +704,9 @@ nv::vulkan::render_pass::render_pass()
 	this->startup.renderArea.extent.height = 0;
 	this->startup.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 
-	// NOTE: this->startup.framebuffer will be defined later when this render
-	// pass is used to create a framebuffer at nv::vulkan::framebuffer::create().
-
-	// FIXME: this->startup.renderArea has not been used yet.
+	// FIXME: this->startup.framebuffer shall be defined later and prior to any
+	// call to this->begin(). Likewise, this->startup.renderArea has not been
+	// defined yet.
 }
 
 void nv::vulkan::render_pass::create(const nv::vulkan::device &d,
@@ -712,15 +723,31 @@ void nv::vulkan::render_pass::create(const nv::vulkan::device &d,
 
 	VkResult error = vkCreateRenderPass(d.handle, &this->setup, nullptr, &this->handle);
 	NV_VULKAN_ERROR("vkCreateRenderPass()", error)
+
+	ASSERT(this->handle != VK_NULL_HANDLE)
 }
 
-/*
-void nv::vulkan::render_pass::begin(const nv::vulkan::command_buffer &b)
+void nv::vulkan::render_pass::begin(nv::vulkan::command_buffer &cb,
+                                    nv::vulkan::framebuffer &fb)
 {
-	ASSERT(b.handle != nullptr)
-	// FIXME: after finishing here, do implement the draw() function at renderer.cpp.
+	ASSERT(cb.handle.size() == fb.handle.size())
+
+	for (uint32_t n = 0; n < fb.handle.size(); ++n)
+	{
+		cb.begin(n);
+		this->startup.framebuffer = fb.handle[n];
+		vkCmdBeginRenderPass(cb.handle[n], &this->startup, VK_SUBPASS_CONTENTS_INLINE);
+	}
 }
-*/
+
+void nv::vulkan::render_pass::end(nv::vulkan::command_buffer &cb)
+{
+	for (uint32_t n = 0; n < cb.handle.size(); ++n)
+	{
+		vkCmdEndRenderPass(cb.handle[n]);
+		cb.end(n);
+	}
+}
 
 void nv::vulkan::render_pass::destroy(const nv::vulkan::device &d)
 {
@@ -785,7 +812,7 @@ void nv::vulkan::framebuffer::create(const nv::vulkan::device &d,
 	}
 
 	// FIXME: using the 1st framebuffer for the render pass for now.
-	p.startup.framebuffer = this->handle[0];
+//	p.startup.framebuffer = this->handle[0];
 }
 
 uint32_t nv::vulkan::framebuffer::size() const
@@ -951,7 +978,8 @@ nv::vulkan::depth_stencil::~depth_stencil()
 // nv::vulkan::layout
 //
 
-nv::vulkan::layout::layout()
+nv::vulkan::layout::layout():
+	handle(nullptr)
 {
 	this->setup.flags = 0;
 	this->setup.pNext = nullptr;
@@ -1029,6 +1057,8 @@ nv::vulkan::pipeline::pipeline():
 	this->assembly.primitiveRestartEnable = VK_FALSE;
 	this->assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	this->assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+
+	this->usage = VK_PIPELINE_BIND_POINT_GRAPHICS;
 }
 
 void nv::vulkan::pipeline::add(const nv::vulkan::shader_module &s)
@@ -1094,8 +1124,15 @@ void nv::vulkan::pipeline::create(const nv::vulkan::device &d)
 {
 	ASSERT(d.handle != nullptr)
 
-	VkResult error = vkCreateGraphicsPipelines(d.handle, this->cache, 1, &this->setup, nullptr,  &this->handle);
+	VkResult error = vkCreateGraphicsPipelines(d.handle, this->cache, 1, &this->setup, nullptr, &this->handle);
 	NV_VULKAN_ERROR("vkCreateGraphicsPipelines()", error)
+}
+
+void nv::vulkan::pipeline::bind(const nv::vulkan::command_buffer &cb, const uint32_t n)
+{
+	ASSERT(n < cb.handle.size())
+
+	vkCmdBindPipeline(cb.handle[n], this->usage, this->handle);
 }
 
 void nv::vulkan::pipeline::destroy(const nv::vulkan::device &d)

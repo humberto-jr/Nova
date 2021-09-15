@@ -5,10 +5,20 @@ nv::renderer::renderer()
 {
 }
 
+void nv::renderer::begin()
+{
+	this->pass.begin(this->buffer, this->frame);
+}
+
 void nv::renderer::draw()
 {
 	// FIXME: to finish implementing the begin() function of the render pass at
 	// vulkan.cpp before finishing draw().
+}
+
+void nv::renderer::end()
+{
+	this->pass.end(this->buffer);
 }
 
 nv::renderer::~renderer()

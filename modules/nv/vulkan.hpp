@@ -76,13 +76,18 @@
 				command_buffer();
 
 				void allocate(const nv::vulkan::device &d,
-				              const nv::vulkan::command_pool &p);
+				              const nv::vulkan::command_pool &p,
+				              const uint32_t n = 1);
 
-				void begin();
+				uint32_t size();
+
+				void begin(const uint32_t n);
+
+				void end(const uint32_t n);
 
 				~command_buffer();
 
-				VkCommandBuffer handle;
+				std::vector<VkCommandBuffer> handle;
 				VkCommandBufferAllocateInfo setup;
 				VkCommandBufferBeginInfo startup;
 			};
@@ -181,11 +186,19 @@
 				VkSpecializationInfo constants;
 			};
 
+			// NOTE: a forward declaration of struct framebuffer for the struct render_pass.
+			struct framebuffer;
+
 			struct render_pass
 			{
 				render_pass();
 
 				void create(const nv::vulkan::device &d, const nv::vulkan::swapchain &c);
+
+				void begin(nv::vulkan::command_buffer &cb,
+				           nv::vulkan::framebuffer &fb);
+
+				void end(nv::vulkan::command_buffer &cb);
 
 				void destroy(const nv::vulkan::device &d);
 
@@ -299,12 +312,15 @@
 
 				void create(const nv::vulkan::device &d);
 
+				void bind(const nv::vulkan::command_buffer &cb, const uint32_t n);
+
 				void destroy(const nv::vulkan::device &d);
 
 				~pipeline();
 
 				VkPipeline handle;
 				VkPipelineCache cache;
+				VkPipelineBindPoint usage;
 				VkGraphicsPipelineCreateInfo setup;
 				VkPipelineVertexInputStateCreateInfo input;
 				VkPipelineInputAssemblyStateCreateInfo assembly;

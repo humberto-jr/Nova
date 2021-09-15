@@ -8,6 +8,7 @@
 	{
 		class window;
 		class renderer;
+		class pipeline;
 
 		class device
 		{
@@ -53,6 +54,10 @@
 			void attach_surface(nv::window &w) const;
 
 			void detach_surface(nv::window &w) const;
+
+			void create_pipeline(nv::pipeline &pl) const;
+
+			void destroy_pipeline(nv::pipeline &pl) const;
 
 			void renderer_startup(nv::renderer &r, const nv::window &w) const;
 

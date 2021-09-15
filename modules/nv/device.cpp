@@ -2,6 +2,7 @@
 #include "window.hpp"
 #include "renderer.hpp"
 #include "device.hpp"
+#include "pipeline.hpp"
 
 static nv::vulkan::instance vk;
 static nv::vulkan::physical_device list;
@@ -141,6 +142,18 @@ void nv::device::detach_surface(nv::window &w) const
 		w.surface.destroy(vk);
 }
 
+void nv::device::create_pipeline(nv::pipeline &pl) const
+{
+	pl.layout.create(this->interface);
+	pl.interface.create(this->interface);
+}
+
+void nv::device::destroy_pipeline(nv::pipeline &pl) const
+{
+	pl.interface.destroy(this->interface);
+	pl.layout.destroy(this->interface);
+}
+
 void nv::device::renderer_startup(nv::renderer &r, const nv::window &w) const
 {
 	if (w.is_closed())
@@ -155,12 +168,7 @@ void nv::device::renderer_startup(nv::renderer &r, const nv::window &w) const
 	r.frame.create(this->interface, r.image, r.pass);
 	r.signal.create(this->interface);
 	r.signal.create(this->interface);
-
-	const uint32_t image_count = r.image.size();
-
-	r.buffer.resize(image_count);
-	for (uint32_t n = 0; n < image_count; ++n)
-		r.buffer[n].allocate(this->interface, this->pool);
+	r.buffer.allocate(this->interface, this->pool, r.image.size());
 }
 
 void nv::device::renderer_shutdown(nv::renderer &r) const
