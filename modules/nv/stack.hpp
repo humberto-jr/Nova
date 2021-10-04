@@ -1,82 +1,110 @@
 #if !defined(NV_STACK_HEADER)
 	#define NV_STACK_HEADER
 	#include <cstdlib>
+	#include <cstdint>
 
-	// 2 Gb
-	#define NV_STACK_CHUNK_SIZE 2147483648
+	#define NV_STACK_SIZE_INCREMENT 1024
 
 	namespace nv
 	{
-		template<typename type>
+		template<typename T>
 		class stack
 		{
 			public:
+			inline static size_t size_increment = NV_STACK_SIZE_INCREMENT;
+
 			static inline size_t size()
 			{
-				return length;
+				return sizeof(T)*length;
+			};
+
+			static inline size_t type_size()
+			{
+				return sizeof(T);
 			};
 
 			static inline size_t capacity()
 			{
-				return max_length;
+				return sizeof(T)*max_length;
 			};
 
-			static inline size_t blocks()
+			static inline size_t count()
 			{
 				return counter;
 			};
 
-			explicit stack(const size_t n): block_start(length), block_length(n)
+			static inline float usage()
 			{
-				if (n*sizeof(type) > (max_length - length))
-				{
-					max_length += NV_STACK_CHUNK_SIZE;
-
-					auto new_buffer = (uint8_t *) realloc(buffer, sizeof(uint8_t)*max_length);
-
-					if (new_buffer != nullptr)
-						buffer = new_buffer;
-					else
-						return;
-				}
-
-				length += n*sizeof(type);
-				++counter;
+				return 100.0f*static_cast<float>(length)/static_cast<float>(max_length);
 			};
 
-			type &operator [](const size_t n)
+			explicit stack(const size_t n = 1):
+				rank(++counter), data_length(n), buffer_offset(length)
 			{
-				return buffer[this->block_start + n];
+				while ((max_length - length) < n)
+					increase_storage();
+
+				length += n;
+			};
+
+			inline bool at_top() const
+			{
+				return (this->rank == counter);
+			}
+
+			inline bool at_bottom() const
+			{
+				return (this->rank == 1);
+			}
+
+			inline size_t block_size() const
+			{
+				return this->data_length;
+			}
+
+			inline T &operator [](const size_t n)
+			{
+				return buffer[this->buffer_offset + n];
+			};
+
+			inline void operator =(const T &t)
+			{
+				for (size_t n = 0; n < this->data_length; ++n)
+					buffer[this->buffer_offset + n] = t;
 			};
 
 			~stack()
 			{
-				length -= this->block_length*sizeof(type);
+				length -= this->data_length;
 				--counter;
 
-				if (counter == 0)
+				if (length == 0)
 				{
-					free(buffer);
-					max_length = 0;
+					std::free(buffer);
 					buffer = nullptr;
+					max_length = 0;
 				}
 			};
 
 			private:
-			size_t block_start;
-			size_t block_length;
+			const size_t rank;
+			const size_t data_length;
+			const size_t buffer_offset;
 
-			// NOTE: counter keeps track of how many instances (blocks) are created.
+			// Globals
 			inline static size_t counter = 0;
-
-			// NOTE: length is the total number of elements stored (< max_length).
 			inline static size_t length = 0;
-
-			// NOTE: max_length is the size of the storage space currently allocated.
 			inline static size_t max_length = 0;
+			inline static T *buffer = nullptr;
 
-			// NOTE: buffer points to the chunck of allocated memory.
-			inline static uint8_t *buffer = nullptr;
+			void increase_storage()
+			{
+				max_length += size_increment;
+
+				auto new_buffer = std::realloc(buffer, sizeof(T)*max_length);
+
+				if (new_buffer != nullptr) buffer = static_cast<T*>(new_buffer);
+			};
 		};
 	}
 #endif
