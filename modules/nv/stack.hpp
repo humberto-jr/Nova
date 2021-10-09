@@ -3,7 +3,9 @@
 	#include <cstdlib>
 	#include <cstdint>
 
-	#define NV_STACK_SIZE_INCREMENT 1024
+	#if !defined(NV_STACK_SIZE_INCREMENT)
+		#define NV_STACK_SIZE_INCREMENT 2048
+	#endif
 
 	namespace nv
 	{
@@ -11,8 +13,6 @@
 		class stack
 		{
 			public:
-			inline static size_t size_increment = NV_STACK_SIZE_INCREMENT;
-
 			static inline size_t size()
 			{
 				return sizeof(T)*length;
@@ -35,10 +35,25 @@
 
 			static inline float usage()
 			{
-				return 100.0f*static_cast<float>(length)/static_cast<float>(max_length);
+				return static_cast<float>(length)/static_cast<float>(max_length);
 			};
 
-			explicit stack(const size_t n = 1):
+			static inline void set_size_increment(const size_t n_bytes)
+			{
+				size_increment = n_bytes/sizeof(T);
+			};
+
+			static void reserve(const size_t n_bytes)
+			{
+				max_length += n_bytes/sizeof(T);
+
+				auto new_buffer = std::realloc(buffer, sizeof(T)*max_length);
+
+				if (new_buffer != nullptr)
+					buffer = static_cast<T*>(new_buffer);
+			};
+
+			explicit inline stack(const size_t n = 1):
 				rank(++counter), data_length(n), buffer_offset(length)
 			{
 				while ((max_length - length) < n)
@@ -67,10 +82,10 @@
 				return buffer[this->buffer_offset + n];
 			};
 
-			inline void operator =(const T &t)
+			inline void operator =(const T &value)
 			{
 				for (size_t n = 0; n < this->data_length; ++n)
-					buffer[this->buffer_offset + n] = t;
+					buffer[this->buffer_offset + n] = value;
 			};
 
 			~stack()
@@ -91,11 +106,11 @@
 			const size_t data_length;
 			const size_t buffer_offset;
 
-			// Globals
-			inline static size_t counter = 0;
-			inline static size_t length = 0;
-			inline static size_t max_length = 0;
-			inline static T *buffer = nullptr;
+			static inline T *buffer = nullptr;
+			static inline size_t length = 0;
+			static inline size_t counter = 0;
+			static inline size_t max_length = 0;
+			static inline size_t size_increment = NV_STACK_SIZE_INCREMENT/sizeof(T);
 
 			void increase_storage()
 			{
@@ -103,7 +118,8 @@
 
 				auto new_buffer = std::realloc(buffer, sizeof(T)*max_length);
 
-				if (new_buffer != nullptr) buffer = static_cast<T*>(new_buffer);
+				if (new_buffer != nullptr)
+					buffer = static_cast<T*>(new_buffer);
 			};
 		};
 	}
